@@ -1,0 +1,41 @@
+flowchart LR
+  api["对外接口层（kits/inner_api + core API 实现）"]
+  core["core：数据依赖图 Entity/VersionCtx"]
+  dm["dm：依赖管理器 SDependenceManager"]
+  tm["tm：任务对象族与工厂"]
+  sched["sched：per-QoS 调度器"]
+  eu["eu：执行单元/Worker/协程"]
+  sync["sync：协程感知同步原语"]
+  queue["queue：串行/并发队列"]
+  dfx["dfx：维测"]
+  util["util：Facade/初始化/基础设施"]
+  click api "modules/api.md" "模块文档"
+  click core "modules/core.md" "模块文档"
+  click dm "modules/dm.md" "模块文档"
+  click tm "modules/tm.md" "模块文档"
+  click sched "modules/sched.md" "模块文档"
+  click eu "modules/eu.md" "模块文档"
+  click sync "modules/sync.md" "模块文档"
+  click queue "modules/queue.md" "模块文档"
+  click dfx "modules/dfx.md" "模块文档"
+  click util "modules/util.md" "模块文档"
+  api -->|ffrt_task_submit → onSubmit| dm
+  api -->|ffrt_queue_submit → QueueHandler| queue
+  api -->|mutex/cv/sleep API| sync
+  dm -->|MapSignature2Deps 建数据依赖图| core
+  dm -->|onSubmit 构造 SCPUEUTask| tm
+  dm -->|onWait 走 CoWait 协程阻塞| eu
+  core ---|VersionCtx 持有 SCPUEUTask 作为生产者/消费者| tm
+  tm -->|CPUEUTask::Ready → Scheduler::PushTask| sched
+  tm -->|Ready → ExecuteUnit::NotifyTask 唤醒 Worker| eu
+  tm -->|生命周期打点与 watchdog| dfx
+  eu -->|WorkerLooper 从调度器取任务| sched
+  eu -->|ExecuteTask 执行任务| tm
+  sync -->|阻塞原语走 CoWait 协程让出| eu
+  queue -->|队列提交构造 QueueTask| tm
+  queue -->|QueueTask::Ready 入调度器| sched
+  util -->|ffrt_init 注册 DM 实现| dm
+  util -->|ffrt_init 注册任务工厂| tm
+  util -->|ffrt_init 注册 STaskScheduler| sched
+  util -->|ffrt_init 注册 SExecuteUnit| eu
+  dfx -->|WorkerMonitor 经 Facade 聚合| util

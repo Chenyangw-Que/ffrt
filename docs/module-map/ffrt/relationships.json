@@ -1,0 +1,160 @@
+{
+  "module": "ffrt",
+  "scope": "src/, include/, interfaces/",
+  "updated": "2026-10-04",
+  "nodes": [
+    { "id": "api", "label": "对外接口层（kits/inner_api + core API 实现）", "doc": "modules/api.md" },
+    { "id": "core", "label": "core：数据依赖图 Entity/VersionCtx", "doc": "modules/core.md" },
+    { "id": "dm", "label": "dm：依赖管理器 SDependenceManager", "doc": "modules/dm.md" },
+    { "id": "tm", "label": "tm：任务对象族与工厂", "doc": "modules/tm.md" },
+    { "id": "sched", "label": "sched：per-QoS 调度器", "doc": "modules/sched.md" },
+    { "id": "eu", "label": "eu：执行单元/Worker/协程", "doc": "modules/eu.md" },
+    { "id": "sync", "label": "sync：协程感知同步原语", "doc": "modules/sync.md" },
+    { "id": "queue", "label": "queue：串行/并发队列", "doc": "modules/queue.md" },
+    { "id": "dfx", "label": "dfx：维测", "doc": "modules/dfx.md" },
+    { "id": "util", "label": "util：Facade/初始化/基础设施", "doc": "modules/util.md" }
+  ],
+  "edges": [
+    {
+      "from": "api",
+      "to": "dm",
+      "kind": "call",
+      "label": "ffrt_task_submit → onSubmit",
+      "evidence": "src/core/task.cpp:76"
+    },
+    {
+      "from": "api",
+      "to": "queue",
+      "kind": "call",
+      "label": "ffrt_queue_submit → QueueHandler",
+      "evidence": "src/queue/queue_api.cpp:215"
+    },
+    {
+      "from": "api",
+      "to": "sync",
+      "kind": "call",
+      "label": "mutex/cv/sleep API",
+      "evidence": "src/sync/mutex.cpp:354"
+    },
+    {
+      "from": "dm",
+      "to": "core",
+      "kind": "call",
+      "label": "MapSignature2Deps 建数据依赖图",
+      "evidence": "src/dm/sdependence_manager.cpp:137"
+    },
+    {
+      "from": "dm",
+      "to": "tm",
+      "kind": "call",
+      "label": "onSubmit 构造 SCPUEUTask",
+      "evidence": "src/dm/sdependence_manager.cpp:68"
+    },
+    {
+      "from": "dm",
+      "to": "eu",
+      "kind": "call",
+      "label": "onWait 走 CoWait 协程阻塞",
+      "evidence": "src/dm/sdependence_manager.cpp:190"
+    },
+    {
+      "from": "core",
+      "to": "tm",
+      "kind": "data",
+      "label": "VersionCtx 持有 SCPUEUTask 作为生产者/消费者",
+      "evidence": "src/core/version_ctx.h:38"
+    },
+    {
+      "from": "tm",
+      "to": "sched",
+      "kind": "call",
+      "label": "CPUEUTask::Ready → Scheduler::PushTask",
+      "evidence": "src/tm/cpu_task.cpp:54"
+    },
+    {
+      "from": "tm",
+      "to": "eu",
+      "kind": "call",
+      "label": "Ready → ExecuteUnit::NotifyTask 唤醒 Worker",
+      "evidence": "src/tm/cpu_task.cpp:57"
+    },
+    {
+      "from": "tm",
+      "to": "dfx",
+      "kind": "call",
+      "label": "生命周期打点与 watchdog",
+      "evidence": "src/tm/cpu_task.cpp:52"
+    },
+    {
+      "from": "eu",
+      "to": "sched",
+      "kind": "call",
+      "label": "WorkerLooper 从调度器取任务",
+      "evidence": "src/eu/cpu_worker.cpp:246"
+    },
+    {
+      "from": "eu",
+      "to": "tm",
+      "kind": "call",
+      "label": "ExecuteTask 执行任务",
+      "evidence": "src/eu/cpu_worker.cpp:184"
+    },
+    {
+      "from": "sync",
+      "to": "eu",
+      "kind": "call",
+      "label": "阻塞原语走 CoWait 协程让出",
+      "evidence": "src/sync/sleep.cpp:51"
+    },
+    {
+      "from": "queue",
+      "to": "tm",
+      "kind": "call",
+      "label": "队列提交构造 QueueTask",
+      "evidence": "src/queue/queue_api.cpp:42"
+    },
+    {
+      "from": "queue",
+      "to": "sched",
+      "kind": "call",
+      "label": "QueueTask::Ready 入调度器",
+      "evidence": "src/tm/queue_task.cpp:86"
+    },
+    {
+      "from": "util",
+      "to": "dm",
+      "kind": "call",
+      "label": "ffrt_init 注册 DM 实现",
+      "evidence": "src/util/init.cpp:70"
+    },
+    {
+      "from": "util",
+      "to": "tm",
+      "kind": "call",
+      "label": "ffrt_init 注册任务工厂",
+      "evidence": "src/util/init.cpp:65"
+    },
+    {
+      "from": "util",
+      "to": "sched",
+      "kind": "call",
+      "label": "ffrt_init 注册 STaskScheduler",
+      "evidence": "src/util/init.cpp:66"
+    },
+    {
+      "from": "util",
+      "to": "eu",
+      "kind": "call",
+      "label": "ffrt_init 注册 SExecuteUnit",
+      "evidence": "src/util/init.cpp:71"
+    },
+    {
+      "from": "dfx",
+      "to": "util",
+      "kind": "call",
+      "label": "WorkerMonitor 经 Facade 聚合",
+      "evidence": "src/util/ffrt_facade.h:45",
+      "status": "verified"
+    }
+  ]
+}
